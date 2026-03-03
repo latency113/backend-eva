@@ -1,19 +1,10 @@
 import { AssignmentService } from "../../services/assignment/assignment.service";
 import { AssignmentSchema } from "../../services/assignment/assignment.schema";
 import { t, Elysia } from "elysia";
-import { authMiddleware, requireAuth, AuthPayload } from "../../../providers/auth/auth.middleware";
+import { AuthPayload } from "../../../providers/auth/auth.middleware";
 
 export namespace AssignmentController {
   export const assignmentController = new Elysia({ prefix: "/assignments" })
-    .use(authMiddleware)
-    // requireAuth for all methods
-    .use(requireAuth)
-    .resolve(async ({ jwt, headers }) => {
-      const auth = headers.authorization;
-      const token = auth && auth.startsWith("Bearer ") ? auth.split(" ")[1] : null;
-      const payload = token ? await jwt.verify(token) : null;
-      return { user: payload as AuthPayload | null };
-    })
     .get(
       "/",
       async (context) => {
@@ -66,7 +57,8 @@ export namespace AssignmentController {
     )
     .get(
       "/:id",
-      async ({ params, set }) => {
+      async (context) => {
+        const { params, set } = context as any;
         try {
           const assignment = await AssignmentService.findById(params.id);
           if (!assignment) {
@@ -141,7 +133,8 @@ export namespace AssignmentController {
     )
     .get(
       "/evaluator/:evaluatorId",
-      async ({ params, set }) => {
+      async (context) => {
+        const { params, set } = context as any;
         try {
           return await AssignmentService.findByEvaluatorId(params.evaluatorId);
         } catch (error) {
@@ -162,7 +155,8 @@ export namespace AssignmentController {
     )
     .get(
       "/evaluatee/:evaluateeId",
-      async ({ params, set }) => {
+      async (context) => {
+        const { params, set } = context as any;
         try {
           return await AssignmentService.findByEvaluateeId(params.evaluateeId);
         } catch (error) {
@@ -212,7 +206,7 @@ export namespace AssignmentController {
     .put(
       "/:id",
       async (context) => {
-        const { params, body, set, user } = context as unknown as { params: any, body: any, set: any, user: AuthPayload | null };
+        const { params, body, set, user } = context as any;
         if (user?.role !== "ADMIN") {
           set.status = 403;
           return { message: "Forbidden: Only ADMIN can update assignments" };
@@ -245,7 +239,8 @@ export namespace AssignmentController {
     )
     .get(
       "/:id/form",
-      async ({ params, set }) => {
+      async (context) => {
+        const { params, set } = context as any;
         try {
           const form = await AssignmentService.getForm(params.id);
           if (!form) {
@@ -270,7 +265,8 @@ export namespace AssignmentController {
     )
     .post(
       "/:id/form",
-      async ({ params, body, set }) => {
+      async (context) => {
+        const { params, body, set } = context as any;
         try {
           await AssignmentService.submitForm(params.id, body.scores);
           return { message: "Success" };
@@ -285,14 +281,15 @@ export namespace AssignmentController {
           scores: t.Array(t.Object({
             indicatorId: t.String(),
             scoreGiven: t.Number()
-          } ))
+          }))
         }),
         tags: ["Assignment"],
       }
     )
     .post(
       "/:id/evidence/:indicatorId",
-      async ({ params, body, set, user }) => {
+      async (context) => {
+        const { params, body, set, user } = context as any;
         try {
           const assignment = await AssignmentService.findById(params.id);
           if (!assignment) {
@@ -323,12 +320,12 @@ export namespace AssignmentController {
         params: t.Object({ id: t.String(), indicatorId: t.String() }),
         body: t.Any(),
         tags: ["Assignment"],
-      } 
+      }
     )
     .delete(
       "/:id",
       async (context) => {
-        const { params, set, user } = context as unknown as { params: any, set: any, user: AuthPayload | null };
+        const { params, set, user } = context as any;
         if (user?.role !== "ADMIN") {
           set.status = 403;
           return { message: "Forbidden: Only ADMIN can delete assignments" };

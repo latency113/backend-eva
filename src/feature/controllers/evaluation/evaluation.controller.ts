@@ -1,11 +1,9 @@
 import { EvaluationService } from "../../services/evaluation/evaluation.service";
 import { EvaluationSchema } from "../../services/evaluation/evaluation.schema";
 import { t, Elysia } from "elysia";
-import { authMiddleware, requireAuth, AuthPayload } from "../../../providers/auth/auth.middleware";
 
 export namespace EvaluationController {
   export const evaluationController = new Elysia({ prefix: "/evaluations" })
-    .use(authMiddleware)
     .get(
       "/",
       async () => {
@@ -46,13 +44,6 @@ export namespace EvaluationController {
         tags: ["Evaluation"],
       },
     )
-    .use(requireAuth)
-    .resolve(async ({ jwt, headers }) => {
-      const auth = headers.authorization;
-      const token = auth && auth.startsWith("Bearer ") ? auth.split(" ")[1] : null;
-      const payload = token ? await jwt.verify(token) : null;
-      return { user: payload as any };
-    })
     .post(
       "/",
       async (context: any) => {

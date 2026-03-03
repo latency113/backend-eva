@@ -19,7 +19,8 @@ export namespace IndicatorController {
     )
     .get(
       "/:id",
-      async ({ params, set }) => {
+      async (context) => {
+        const { params, set } = context as any;
         try {
           const indicator = await IndicatorService.findById(params.id);
           if (!indicator) {
@@ -46,7 +47,8 @@ export namespace IndicatorController {
     )
     .get(
       "/topic/:topicId",
-      async ({ params, set }) => {
+      async (context) => {
+        const { params, set } = context as any;
         try {
           return await IndicatorService.findByTopicId(params.topicId);
         } catch (error) {
@@ -67,7 +69,12 @@ export namespace IndicatorController {
     )
     .post(
       "/",
-      async ({ body, set }) => {
+      async (context) => {
+        const { body, set, user } = context as any;
+        if (user?.role !== "ADMIN") {
+          set.status = 403;
+          return { message: "Forbidden: Only ADMIN can create indicators" };
+        }
         try {
           const newIndicator = await IndicatorService.create(body);
           set.status = 201;
@@ -81,6 +88,7 @@ export namespace IndicatorController {
         body: t.Omit(IndicatorSchema, ["id", "createdAt"]),
         response: {
           201: IndicatorSchema,
+          403: t.Object({ message: t.String() }),
           500: t.Object({ message: t.String() }),
         },
         tags: ["Indicator"],
@@ -88,7 +96,12 @@ export namespace IndicatorController {
     )
     .put(
       "/:id",
-      async ({ params, body, set }) => {
+      async (context) => {
+        const { params, body, set, user } = context as any;
+        if (user?.role !== "ADMIN") {
+          set.status = 403;
+          return { message: "Forbidden: Only ADMIN can update indicators" };
+        }
         try {
           const updatedIndicator = await IndicatorService.update(params.id, body);
           if (!updatedIndicator) {
@@ -108,6 +121,7 @@ export namespace IndicatorController {
         body: t.Omit(IndicatorSchema, ["id", "createdAt", "topicId"]),
         response: {
           200: IndicatorSchema,
+          403: t.Object({ message: t.String() }),
           404: t.Object({ message: t.String() }),
           500: t.Object({ message: t.String() }),
         },
@@ -116,7 +130,12 @@ export namespace IndicatorController {
     )
     .delete(
       "/:id",
-      async ({ params, set }) => {
+      async (context) => {
+        const { params, set, user } = context as any;
+        if (user?.role !== "ADMIN") {
+          set.status = 403;
+          return { message: "Forbidden: Only ADMIN can delete indicators" };
+        }
         try {
           await IndicatorService.deleteById(params.id);
           return { message: "Indicator deleted successfully" };
@@ -135,6 +154,7 @@ export namespace IndicatorController {
         }),
         response: {
           200: t.Object({ message: t.String() }),
+          403: t.Object({ message: t.String() }),
           404: t.Object({ message: t.String() }),
           500: t.Object({ message: t.String() }),
         },

@@ -1,5 +1,5 @@
 import { Elysia } from "elysia";
-import jwt from "@elysiajs/jwt";
+import { jwtPlugin } from "../jwt/jwt.provider";
 
 // Interface for what we expect in the JWT payload
 export interface AuthPayload {
@@ -8,38 +8,40 @@ export interface AuthPayload {
   role: "ADMIN" | "EVALUATOR" | "EVALUATEE";
 }
 
-export const authMiddleware = new Elysia({ name: "auth.middleware" })
-  .use(
-    jwt({
-      name: "jwt",
-      secret: process.env.JWT_SECRET || "fallback_secret",
-    })
-  )
-  .resolve(async ({ jwt, headers }) => {
+export const authContext = new Elysia({ name: "authContext" })
+  .use(jwtPlugin)
+  .derive(async ({ jwt, headers }) => {
     try {
       const authorization = headers["authorization"];
+      console.log(`[AUTH-DERIVE] Header:`, authorization ? "Exists" : "MISSING");
+
       if (!authorization || !authorization.startsWith("Bearer ")) {
-        return { user: { role: "auth_header_missing", orig: authorization } };
+        return { user: null };
       }
 
       const token = authorization.split(" ")[1];
+      console.log(`[AUTH-DERIVE] Token found, length:`, token.length);
+
       const payload = await jwt.verify(token);
+      console.log(`[AUTH-DERIVE] Payload:`, payload ? "VALID" : "INVALID");
 
       if (!payload) {
-        return { user: { role: "payload_verification_failed", token } };
+        return { user: null };
       }
 
       return { user: payload as any as AuthPayload };
     } catch (e: any) {
-      return { user: { role: "auth_exception", error: e.message } };
+      console.log(`[AUTH-DERIVE] EXCEPTION:`, e.message);
+      return { user: null };
     }
   });
 
-export const requireAuth = new Elysia()
-  .use(authMiddleware)
-  .onBeforeHandle(({ user, set }: any) => {
-    if (!user) {
-      set.status = 401;
-      return { message: "Unauthorized: Invalid or missing token" };
-    }
-  });
+export const requireAuth = (app: Elysia) =>
+  app.use(authContext)
+    .onBeforeHandle(({ user, set, request }: any) => {
+      console.log(`[AUTH-CHECK] ${new URL(request.url).pathname}, User:`, user?.id || "anonymous");
+      if (!user) {
+        set.status = 401;
+        return { message: "Unauthorized: Invalid or missing token" };
+      }
+    });

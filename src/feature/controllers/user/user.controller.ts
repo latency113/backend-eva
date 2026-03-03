@@ -4,87 +4,109 @@ import Elysia, { t } from "elysia";
 
 export namespace UserController {
   export const userController = new Elysia({ prefix: "/users" })
-  .get(
-    "/",
-    async ({ query }) => {
-      const { role } = query as { role?: string };
-      return await UserService.findAll(role);
-    },
-    {
-      body: t.Omit(UserSchema, ["password", "createdAt"]),
-      response: {
-        201: t.Array(t.Omit(UserSchema, ["password"])),
+    .get(
+      "/",
+      async (context) => {
+        const { query } = context as any;
+        const { role } = query;
+        return await UserService.findAll(role);
       },
-      409: t.Object({ message: t.String() }),
-      500: t.Object({ message: t.String() }),
-      tags: ["User"],
-    },
-  )
-  .post(
-    "/",
-    async ({ body }) => {
-      try {
-        const newUser = await UserService.create(body);
-        return newUser;
-      } catch (error) {
-        if (error instanceof Error && error.message.includes("Unique constraint failed")) {
-          return { message: "Email already exists" };
+      {
+        response: {
+          200: t.Array(t.Omit(UserSchema, ["password"])),
+        },
+        500: t.Object({ message: t.String() }),
+        tags: ["User"],
+      },
+    )
+    .post(
+      "/",
+      async (context) => {
+        const { body, set, user } = context as any;
+        if (user?.role !== "ADMIN") {
+          set.status = 403;
+          return { message: "Forbidden: Only ADMIN can create users" };
         }
-        return { message: "Internal server error" };
-      }
-    },
-    {
-      body: t.Omit(UserSchema, ["id", "createdAt"]),
-      response: {
-        201: (UserSchema),
-        409: t.Object({ message: t.String() }),
-        500: t.Object({ message: t.String() }),
+        try {
+          const newUser = await UserService.create(body);
+          set.status = 201;
+          return newUser;
+        } catch (error) {
+          if (error instanceof Error && error.message.includes("Unique constraint failed")) {
+            set.status = 409;
+            return { message: "Email already exists" };
+          }
+          set.status = 500;
+          return { message: "Internal server error" };
+        }
       },
-      tags: ["User"],
-    },
-  )
-  .put('/:id',
-    async ({ params, body }) => {
-      try {
-        const updatedUser = await UserService.update(params.id, body);
-        return updatedUser;
-      } catch (error) {
-        return { message: "Internal server error" };
-      }
-    },
-    {
-      params: t.Object({
-        id: t.String(),
-      }),
-      body: t.Omit(UserSchema, ["id", "createdAt"]),
-      response: {
-        201: UserSchema,
-        404: t.Object({ message: t.String() }),
-        500: t.Object({ message: t.String() }),
+      {
+        body: t.Omit(UserSchema, ["id", "createdAt"]),
+        response: {
+          201: (UserSchema),
+          403: t.Object({ message: t.String() }),
+          409: t.Object({ message: t.String() }),
+          500: t.Object({ message: t.String() }),
+        },
+        tags: ["User"],
       },
-      tags: ["User"],
-    },
-  )
-  .delete(
-    "/:id",
-    async ({ params }) => {
-      try {
-        await UserService.deleteById(params.id);
-        return { message: "User deleted successfully" };
-      } catch (error) {
-        return { message: "Internal server error" };
-      }
-    },
-    {
-      params: t.Object({
-        id: t.String(),
-      }),
-      response: {
-        200: t.Object({ message: t.String() }),
-        404: t.Object({ message: t.String() }),
-        500: t.Object({ message: t.String() }),
+    )
+    .put('/:id',
+      async (context) => {
+        const { params, body, set, user } = context as any;
+        if (user?.role !== "ADMIN") {
+          set.status = 403;
+          return { message: "Forbidden: Only ADMIN can update users" };
+        }
+        try {
+          const updatedUser = await UserService.update(params.id, body);
+          return updatedUser;
+        } catch (error) {
+          set.status = 500;
+          return { message: "Internal server error" };
+        }
       },
-      tags: ["User"],
-    },
-  )
+      {
+        params: t.Object({
+          id: t.String(),
+        }),
+        body: t.Omit(UserSchema, ["id", "createdAt", "password"]),
+        response: {
+          200: UserSchema,
+          403: t.Object({ message: t.String() }),
+          404: t.Object({ message: t.String() }),
+          500: t.Object({ message: t.String() }),
+        },
+        tags: ["User"],
+      },
+    )
+    .delete(
+      "/:id",
+      async (context) => {
+        const { params, set, user } = context as any;
+        if (user?.role !== "ADMIN") {
+          set.status = 403;
+          return { message: "Forbidden: Only ADMIN can delete users" };
+        }
+        try {
+          await UserService.deleteById(params.id);
+          return { message: "User deleted successfully" };
+        } catch (error) {
+          set.status = 500;
+          return { message: "Internal server error" };
+        }
+      },
+      {
+        params: t.Object({
+          id: t.String(),
+        }),
+        response: {
+          200: t.Object({ message: t.String() }),
+          403: t.Object({ message: t.String() }),
+          404: t.Object({ message: t.String() }),
+          500: t.Object({ message: t.String() }),
+        },
+        tags: ["User"],
+      },
+    )
 }

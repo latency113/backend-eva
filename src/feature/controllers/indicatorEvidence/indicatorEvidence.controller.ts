@@ -1,12 +1,9 @@
 import { IndicatorEvidenceService } from "../../services/indicatorEvidence/indicatorEvidence.service";
 import { IndicatorEvidenceSchema } from "../../services/indicatorEvidence/indicatorEvidence.schema";
 import { t, Elysia } from "elysia";
-import { authMiddleware, requireAuth } from "../../../providers/auth/auth.middleware";
 
 export namespace IndicatorEvidenceController {
   export const indicatorEvidenceController = new Elysia({ prefix: "/indicator-evidences" })
-    .use(authMiddleware)
-    .use(requireAuth)
     .get(
       "/",
       async () => {
@@ -22,7 +19,8 @@ export namespace IndicatorEvidenceController {
     )
     .get(
       "/:id",
-      async ({ params, set }) => {
+      async (context) => {
+        const { params, set } = context as any;
         try {
           const evidence = await IndicatorEvidenceService.findById(params.id);
           if (!evidence) {
@@ -49,7 +47,8 @@ export namespace IndicatorEvidenceController {
     )
     .get(
       "/indicator/:indicatorId",
-      async ({ params, set }) => {
+      async (context) => {
+        const { params, set } = context as any;
         try {
           return await IndicatorEvidenceService.findByIndicatorId(params.indicatorId);
         } catch (error) {
@@ -70,7 +69,8 @@ export namespace IndicatorEvidenceController {
     )
     .get(
       "/evaluatee/:evaluateeId",
-      async ({ params, set }) => {
+      async (context) => {
+        const { params, set } = context as any;
         try {
           return await IndicatorEvidenceService.findByEvaluateeId(params.evaluateeId);
         } catch (error) {
@@ -95,8 +95,8 @@ export namespace IndicatorEvidenceController {
         const { body, set, user } = context as any;
         // User should only submit their own evidence unless Admin
         if (user?.role !== "ADMIN" && user.id !== body.evaluateeId) {
-            set.status = 403;
-            return { message: "Forbidden: You can only submit evidence for yourself" };
+          set.status = 403;
+          return { message: "Forbidden: You can only submit evidence for yourself" };
         }
         try {
           const newEvidence = await IndicatorEvidenceService.create(body);
@@ -119,13 +119,19 @@ export namespace IndicatorEvidenceController {
     )
     .put(
       "/:id",
-      async ({ params, body, set }) => {
+      async (context) => {
+        const { params, body, set, user } = context as any;
         try {
-          const updatedEvidence = await IndicatorEvidenceService.update(params.id, body);
-          if (!updatedEvidence) {
+          const existing = await IndicatorEvidenceService.findById(params.id);
+          if (!existing) {
             set.status = 404;
             return { message: "IndicatorEvidence not found" };
           }
+          if (user?.role !== "ADMIN" && user.id !== (existing as any).evaluateeId) {
+            set.status = 403;
+            return { message: "Forbidden: You can only update your own evidence" };
+          }
+          const updatedEvidence = await IndicatorEvidenceService.update(params.id, body);
           return updatedEvidence;
         } catch (error) {
           set.status = 500;
@@ -139,6 +145,7 @@ export namespace IndicatorEvidenceController {
         body: t.Omit(IndicatorEvidenceSchema, ["id", "createdAt", "indicatorId", "evaluateeId"]),
         response: {
           200: IndicatorEvidenceSchema,
+          403: t.Object({ message: t.String() }),
           404: t.Object({ message: t.String() }),
           500: t.Object({ message: t.String() }),
         },
@@ -147,8 +154,18 @@ export namespace IndicatorEvidenceController {
     )
     .delete(
       "/:id",
-      async ({ params, set }) => {
+      async (context) => {
+        const { params, set, user } = context as any;
         try {
+          const existing = await IndicatorEvidenceService.findById(params.id);
+          if (!existing) {
+            set.status = 404;
+            return { message: "IndicatorEvidence not found" };
+          }
+          if (user?.role !== "ADMIN" && user.id !== (existing as any).evaluateeId) {
+            set.status = 403;
+            return { message: "Forbidden: You can only delete your own evidence" };
+          }
           await IndicatorEvidenceService.deleteById(params.id);
           return { message: "IndicatorEvidence deleted successfully" };
         } catch (error: any) {
@@ -166,6 +183,7 @@ export namespace IndicatorEvidenceController {
         }),
         response: {
           200: t.Object({ message: t.String() }),
+          403: t.Object({ message: t.String() }),
           404: t.Object({ message: t.String() }),
           500: t.Object({ message: t.String() }),
         },

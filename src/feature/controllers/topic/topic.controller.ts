@@ -19,7 +19,8 @@ export namespace TopicController {
     )
     .get(
       "/:id",
-      async ({ params, set }) => {
+      async (context) => {
+        const { params, set } = context as any;
         try {
           const topic = await TopicService.findById(params.id);
           if (!topic) {
@@ -46,7 +47,8 @@ export namespace TopicController {
     )
     .get(
       "/evaluation/:evaluationId",
-      async ({ params, set }) => {
+      async (context) => {
+        const { params, set } = context as any;
         try {
           return await TopicService.findByEvaluationId(params.evaluationId);
         } catch (error) {
@@ -67,7 +69,12 @@ export namespace TopicController {
     )
     .post(
       "/",
-      async ({ body, set }) => {
+      async (context) => {
+        const { body, set, user } = context as any;
+        if (user?.role !== "ADMIN") {
+          set.status = 403;
+          return { message: "Forbidden: Only ADMIN can create topics" };
+        }
         try {
           const newTopic = await TopicService.create(body);
           set.status = 201;
@@ -81,6 +88,7 @@ export namespace TopicController {
         body: t.Omit(TopicSchema, ["id", "createdAt"]),
         response: {
           201: TopicSchema,
+          403: t.Object({ message: t.String() }),
           500: t.Object({ message: t.String() }),
         },
         tags: ["Topic"],
@@ -88,7 +96,12 @@ export namespace TopicController {
     )
     .put(
       "/:id",
-      async ({ params, body, set }) => {
+      async (context) => {
+        const { params, body, set, user } = context as any;
+        if (user?.role !== "ADMIN") {
+          set.status = 403;
+          return { message: "Forbidden: Only ADMIN can update topics" };
+        }
         try {
           const updatedTopic = await TopicService.update(params.id, body);
           if (!updatedTopic) {
@@ -108,6 +121,7 @@ export namespace TopicController {
         body: t.Omit(TopicSchema, ["id", "createdAt", "evaluationId", "createdBy"]),
         response: {
           200: TopicSchema,
+          403: t.Object({ message: t.String() }),
           404: t.Object({ message: t.String() }),
           500: t.Object({ message: t.String() }),
         },
@@ -116,7 +130,12 @@ export namespace TopicController {
     )
     .delete(
       "/:id",
-      async ({ params, set }) => {
+      async (context) => {
+        const { params, set, user } = context as any;
+        if (user?.role !== "ADMIN") {
+          set.status = 403;
+          return { message: "Forbidden: Only ADMIN can delete topics" };
+        }
         try {
           await TopicService.deleteById(params.id);
           return { message: "Topic deleted successfully" };
@@ -135,6 +154,7 @@ export namespace TopicController {
         }),
         response: {
           200: t.Object({ message: t.String() }),
+          403: t.Object({ message: t.String() }),
           404: t.Object({ message: t.String() }),
           500: t.Object({ message: t.String() }),
         },

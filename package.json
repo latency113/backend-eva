@@ -18,8 +18,10 @@
     "elysia": "latest"
   },
   "devDependencies": {
+    "@types/node": "latest",
     "bun-types": "latest",
-    "prisma": "^6.16.2"
+    "prisma": "^6.16.2",
+    "typescript": "latest"
   },
   "module": "src/index.js"
 }
