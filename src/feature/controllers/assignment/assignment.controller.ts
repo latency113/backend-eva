@@ -1,17 +1,58 @@
 import { AssignmentService } from "../../services/assignment/assignment.service";
 import { AssignmentSchema } from "../../services/assignment/assignment.schema";
 import { t, Elysia } from "elysia";
+import { authMiddleware, requireAuth, AuthPayload } from "../../../providers/auth/auth.middleware";
 
 export namespace AssignmentController {
   export const assignmentController = new Elysia({ prefix: "/assignments" })
+    .use(authMiddleware)
+    // requireAuth for all methods
+    .use(requireAuth)
     .get(
       "/",
-      async () => {
-        return await AssignmentService.findAll();
+      async (context) => {
+        const { user } = context as unknown as { user: AuthPayload | null };
+        if (!user) {
+           return []; // or throw 401
+        }
+        
+        let assignments: any[] = [];
+        if (user.role === "ADMIN") {
+            assignments = await AssignmentService.findAll();
+        } else if (user.role === "EVALUATOR") {
+            assignments = await AssignmentService.findByEvaluatorId(user.id);
+        } else if (user.role === "EVALUATEE") {
+            assignments = await AssignmentService.findByEvaluateeId(user.id);
+        }
+
+        // Fetch scores for all assignments concurrently
+        const assignmentsWithScores = await Promise.all(
+          assignments.map(async (assignment: any) => {
+            const scoreResult = await AssignmentService.calculateScore(assignment.id);
+            return {
+              ...assignment,
+              scoreDetails: scoreResult,
+            };
+          })
+        );
+
+        return assignmentsWithScores;
       },
       {
         response: {
-          200: t.Array(AssignmentSchema),
+          200: t.Array(t.Object({
+              id: t.String(),
+              evaluationId: t.String(),
+              evaluatorId: t.String(),
+              evaluateeId: t.String(),
+              createdAt: t.String(),
+              scoreDetails: t.Union([t.Null(), t.Object({
+                   assignmentId: t.String(),
+                   totalScore: t.Number(),
+                   maxPossibleScore: t.Number(),
+                   percentage: t.Number()
+              })]),
+          })),
         },
         500: t.Object({ message: t.String() }),
         tags: ["Assignment"],
@@ -38,6 +79,38 @@ export namespace AssignmentController {
         }),
         response: {
           200: AssignmentSchema,
+          404: t.Object({ message: t.String() }),
+          500: t.Object({ message: t.String() }),
+        },
+        tags: ["Assignment"],
+      },
+    )
+    .get(
+      "/:id/score",
+      async ({ params, set }) => {
+        try {
+          const scoreResult = await AssignmentService.calculateScore(params.id);
+          if (!scoreResult) {
+            set.status = 404;
+            return { message: "Assignment not found" };
+          }
+          return scoreResult;
+        } catch (error) {
+          set.status = 500;
+          return { message: "Internal server error" };
+        }
+      },
+      {
+        params: t.Object({
+          id: t.String(),
+        }),
+        response: {
+          200: t.Object({
+            assignmentId: t.String(),
+            totalScore: t.Number(),
+            maxPossibleScore: t.Number(),
+            percentage: t.Number(),
+          }),
           404: t.Object({ message: t.String() }),
           500: t.Object({ message: t.String() }),
         },
@@ -109,7 +182,12 @@ export namespace AssignmentController {
     )
     .post(
       "/",
-      async ({ body, set }) => {
+      async (context) => {
+        const { body, set, user } = context as unknown as { body: any, set: any, user: AuthPayload | null };
+        if (user?.role !== "ADMIN") {
+            set.status = 403;
+            return { message: "Forbidden: Only ADMIN can create assignments" };
+        }
         try {
           const newAssignment = await AssignmentService.create(body);
           set.status = 201;
@@ -123,6 +201,7 @@ export namespace AssignmentController {
         body: t.Omit(AssignmentSchema, ["id", "createdAt"]),
         response: {
           201: AssignmentSchema,
+          403: t.Object({ message: t.String() }),
           500: t.Object({ message: t.String() }),
         },
         tags: ["Assignment"],
@@ -130,7 +209,12 @@ export namespace AssignmentController {
     )
     .put(
       "/:id",
-      async ({ params, body, set }) => {
+      async (context) => {
+        const { params, body, set, user } = context as unknown as { params: any, body: any, set: any, user: AuthPayload | null };
+        if (user?.role !== "ADMIN") {
+            set.status = 403;
+            return { message: "Forbidden: Only ADMIN can update assignments" };
+        }
         try {
           const updatedAssignment = await AssignmentService.update(params.id, body);
           if (!updatedAssignment) {
@@ -150,6 +234,7 @@ export namespace AssignmentController {
         body: t.Omit(AssignmentSchema, ["id", "createdAt"]),
         response: {
           200: AssignmentSchema,
+          403: t.Object({ message: t.String() }),
           404: t.Object({ message: t.String() }),
           500: t.Object({ message: t.String() }),
         },
@@ -158,7 +243,12 @@ export namespace AssignmentController {
     )
     .delete(
       "/:id",
-      async ({ params, set }) => {
+      async (context) => {
+        const { params, set, user } = context as unknown as { params: any, set: any, user: AuthPayload | null };
+        if (user?.role !== "ADMIN") {
+            set.status = 403;
+            return { message: "Forbidden: Only ADMIN can delete assignments" };
+        }
         try {
           await AssignmentService.deleteById(params.id);
           return { message: "Assignment deleted successfully" };
@@ -177,6 +267,7 @@ export namespace AssignmentController {
         }),
         response: {
           200: t.Object({ message: t.String() }),
+          403: t.Object({ message: t.String() }),
           404: t.Object({ message: t.String() }),
           500: t.Object({ message: t.String() }),
         },

@@ -1,9 +1,12 @@
 import { IndicatorEvidenceService } from "../../services/indicatorEvidence/indicatorEvidence.service";
 import { IndicatorEvidenceSchema } from "../../services/indicatorEvidence/indicatorEvidence.schema";
 import { t, Elysia } from "elysia";
+import { authMiddleware, requireAuth } from "../../../providers/auth/auth.middleware";
 
 export namespace IndicatorEvidenceController {
   export const indicatorEvidenceController = new Elysia({ prefix: "/indicator-evidences" })
+    .use(authMiddleware)
+    .use(requireAuth)
     .get(
       "/",
       async () => {
@@ -88,7 +91,13 @@ export namespace IndicatorEvidenceController {
     )
     .post(
       "/",
-      async ({ body, set }) => {
+      async (context) => {
+        const { body, set, user } = context as any;
+        // User should only submit their own evidence unless Admin
+        if (user?.role !== "ADMIN" && user.id !== body.evaluateeId) {
+            set.status = 403;
+            return { message: "Forbidden: You can only submit evidence for yourself" };
+        }
         try {
           const newEvidence = await IndicatorEvidenceService.create(body);
           set.status = 201;
@@ -102,6 +111,7 @@ export namespace IndicatorEvidenceController {
         body: t.Omit(IndicatorEvidenceSchema, ["id", "createdAt"]),
         response: {
           201: IndicatorEvidenceSchema,
+          403: t.Object({ message: t.String() }),
           500: t.Object({ message: t.String() }),
         },
         tags: ["IndicatorEvidence"],

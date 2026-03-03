@@ -1,8 +1,15 @@
 import {t ,Elysia} from "elysia";
 import { AuthService } from "../../services/auth/auth.service";
+import jwt from "@elysiajs/jwt";
 
 export namespace AuthController {
     export const authController = new Elysia({ prefix: "/auth" })
+    .use(
+        jwt({
+            name: "jwt",
+            secret: process.env.JWT_SECRET || "fallback_secret",
+        })
+    )
     .post(
         "/login",
         async ({ body, jwt, set }) => {

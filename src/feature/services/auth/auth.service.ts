@@ -13,6 +13,7 @@ export namespace AuthService {
     }
 
     const payload = {
+      id: user.id,
       username: user.name,
       role: user.role,
     };

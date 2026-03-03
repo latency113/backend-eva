@@ -1,9 +1,11 @@
 import { EvaluationService } from "../../services/evaluation/evaluation.service";
 import { EvaluationSchema } from "../../services/evaluation/evaluation.schema";
 import { t, Elysia } from "elysia";
+import { authMiddleware, requireAuth, AuthPayload } from "../../../providers/auth/auth.middleware";
 
 export namespace EvaluationController {
   export const evaluationController = new Elysia({ prefix: "/evaluations" })
+    .use(authMiddleware)
     .get(
       "/",
       async () => {
@@ -44,9 +46,15 @@ export namespace EvaluationController {
         tags: ["Evaluation"],
       },
     )
+    .use(requireAuth)
     .post(
       "/",
-      async ({ body, set }) => {
+      async (context) => {
+        const { body, set, user } = context as any;
+        if (user?.role !== "ADMIN") {
+          set.status = 403;
+          return { message: "Forbidden: Only ADMIN can create evaluations" };
+        }
         try {
           const newEvaluation = await EvaluationService.create(body);
           set.status = 201;
@@ -60,6 +68,7 @@ export namespace EvaluationController {
         body: t.Omit(EvaluationSchema, ["id", "createdAt"]),
         response: {
           201: EvaluationSchema,
+          403: t.Object({ message: t.String() }),
           500: t.Object({ message: t.String() }),
         },
         tags: ["Evaluation"],
@@ -67,7 +76,12 @@ export namespace EvaluationController {
     )
     .put(
       "/:id",
-      async ({ params, body, set }) => {
+      async (context) => {
+        const { params, body, set, user } = context as any;
+        if (user?.role !== "ADMIN") {
+          set.status = 403;
+          return { message: "Forbidden: Only ADMIN can update evaluations" };
+        }
         try {
           const updatedEvaluation = await EvaluationService.update(params.id, body);
           if (!updatedEvaluation) {
@@ -87,6 +101,7 @@ export namespace EvaluationController {
         body: t.Omit(EvaluationSchema, ["id", "createdAt"]),
         response: {
           200: EvaluationSchema,
+          403: t.Object({ message: t.String() }),
           404: t.Object({ message: t.String() }),
           500: t.Object({ message: t.String() }),
         },
@@ -95,7 +110,12 @@ export namespace EvaluationController {
     )
     .delete(
       "/:id",
-      async ({ params, set }) => {
+      async (context) => {
+        const { params, set, user } = context as any;
+        if (user?.role !== "ADMIN") {
+          set.status = 403;
+          return { message: "Forbidden: Only ADMIN can delete evaluations" };
+        }
         try {
           await EvaluationService.deleteById(params.id);
           return { message: "Evaluation deleted successfully" };
