@@ -1,7 +1,29 @@
 import { Elysia } from "elysia";
+import dotenv from "dotenv";
+import swagger from "@elysiajs/swagger";
+import cors from "@elysiajs/cors";
+import { appController } from "./feature/controllers";
+import jwt from "@elysiajs/jwt";
+dotenv.config();
 
-const app = new Elysia().get("/", () => "Hello Elysia").listen(3000);
+const app = new Elysia()
+  .use(cors())
+  .use(
+    swagger({
+      path: "/docs",
+    }),
+  )
+  .use(
+    jwt({
+      name: "jwt",
+      secret: process.env.JWT_SECRET!,
+      exp: "1h",
+    }),
+  )
+  .use(appController)
+  .get("/", () => "ok")
+  .listen(process.env.PORT || 3000);
 
 console.log(
-  `🦊 Elysia is running at ${app.server?.hostname}:${app.server?.port}`
+  `🦊 Elysia is running at http://${app.server?.hostname}:${app.server?.port}/docs`,
 );
