@@ -9,26 +9,26 @@ export namespace AssignmentController {
     // requireAuth for all methods
     .use(requireAuth)
     .resolve(async ({ jwt, headers }) => {
-        const auth = headers.authorization;
-        const token = auth && auth.startsWith("Bearer ") ? auth.split(" ")[1] : null;
-        const payload = token ? await jwt.verify(token) : null;
-        return { user: payload as AuthPayload | null };
+      const auth = headers.authorization;
+      const token = auth && auth.startsWith("Bearer ") ? auth.split(" ")[1] : null;
+      const payload = token ? await jwt.verify(token) : null;
+      return { user: payload as AuthPayload | null };
     })
     .get(
       "/",
       async (context) => {
         const { user } = context as unknown as { user: AuthPayload | null };
         if (!user) {
-           return []; // or throw 401
+          return []; // or throw 401
         }
-        
+
         let assignments: any[] = [];
         if (user.role === "ADMIN") {
-            assignments = await AssignmentService.findAll();
+          assignments = await AssignmentService.findAll();
         } else if (user.role === "EVALUATOR") {
-            assignments = await AssignmentService.findByEvaluatorId(user.id);
+          assignments = await AssignmentService.findByEvaluatorId(user.id);
         } else if (user.role === "EVALUATEE") {
-            assignments = await AssignmentService.findByEvaluateeId(user.id);
+          assignments = await AssignmentService.findByEvaluateeId(user.id);
         }
 
         // Fetch scores for all assignments concurrently
@@ -47,17 +47,17 @@ export namespace AssignmentController {
       {
         response: {
           200: t.Array(t.Object({
-              id: t.String(),
-              evaluationId: t.String(),
-              evaluatorId: t.String(),
-              evaluateeId: t.String(),
-              createdAt: t.String(),
-              scoreDetails: t.Union([t.Null(), t.Object({
-                   assignmentId: t.String(),
-                   totalScore: t.Number(),
-                   maxPossibleScore: t.Number(),
-                   percentage: t.Number()
-              })]),
+            id: t.String(),
+            evaluationId: t.String(),
+            evaluatorId: t.String(),
+            evaluateeId: t.String(),
+            createdAt: t.String(),
+            scoreDetails: t.Union([t.Null(), t.Object({
+              assignmentId: t.String(),
+              totalScore: t.Number(),
+              maxPossibleScore: t.Number(),
+              percentage: t.Number()
+            })]),
           })),
         },
         500: t.Object({ message: t.String() }),
@@ -186,8 +186,8 @@ export namespace AssignmentController {
       async (context) => {
         const { body, set, user } = context as unknown as { body: any, set: any, user: AuthPayload | null };
         if (user?.role !== "ADMIN") {
-            set.status = 403;
-            return { message: "Forbidden: Only ADMIN can create assignments" };
+          set.status = 403;
+          return { message: "Forbidden: Only ADMIN can create assignments" };
         }
         try {
           const newAssignment = await AssignmentService.create(body);
@@ -214,8 +214,8 @@ export namespace AssignmentController {
       async (context) => {
         const { params, body, set, user } = context as unknown as { params: any, body: any, set: any, user: AuthPayload | null };
         if (user?.role !== "ADMIN") {
-            set.status = 403;
-            return { message: "Forbidden: Only ADMIN can update assignments" };
+          set.status = 403;
+          return { message: "Forbidden: Only ADMIN can update assignments" };
         }
         try {
           const updatedAssignment = await AssignmentService.update(params.id, body);
@@ -264,7 +264,8 @@ export namespace AssignmentController {
           200: t.Any(),
           404: t.Object({ message: t.String() }),
           500: t.Object({ message: t.String() }),
-        }
+        },
+        tags: ["Assignment"],
       }
     )
     .post(
@@ -284,8 +285,9 @@ export namespace AssignmentController {
           scores: t.Array(t.Object({
             indicatorId: t.String(),
             scoreGiven: t.Number()
-          }))
-        })
+          } ))
+        }),
+        tags: ["Assignment"],
       }
     )
     .post(
@@ -297,7 +299,7 @@ export namespace AssignmentController {
             set.status = 404;
             return { message: "Assignment not found" };
           }
-          
+
           if (user?.role === "EVALUATEE" && assignment.evaluateeId !== user.id) {
             set.status = 403;
             return { message: "Forbidden: You can only upload evidence for your own assignments" };
@@ -306,7 +308,7 @@ export namespace AssignmentController {
           const file = body.file;
           const fileName = `${Date.now()}_${file.name.replace(/\s+/g, "_")}`;
           const filePath = `public/uploads/evidences/${fileName}`;
-          
+
           await Bun.write(filePath, file);
 
           const fileUrl = `/public/uploads/evidences/${fileName}`;
@@ -319,16 +321,17 @@ export namespace AssignmentController {
       },
       {
         params: t.Object({ id: t.String(), indicatorId: t.String() }),
-        body: t.Any()
-      }
+        body: t.Any(),
+        tags: ["Assignment"],
+      } 
     )
     .delete(
       "/:id",
       async (context) => {
         const { params, set, user } = context as unknown as { params: any, set: any, user: AuthPayload | null };
         if (user?.role !== "ADMIN") {
-            set.status = 403;
-            return { message: "Forbidden: Only ADMIN can delete assignments" };
+          set.status = 403;
+          return { message: "Forbidden: Only ADMIN can delete assignments" };
         }
         try {
           await AssignmentService.deleteById(params.id);
