@@ -8,6 +8,12 @@ export namespace AssignmentController {
     .use(authMiddleware)
     // requireAuth for all methods
     .use(requireAuth)
+    .resolve(async ({ jwt, headers }) => {
+        const auth = headers.authorization;
+        const token = auth && auth.startsWith("Bearer ") ? auth.split(" ")[1] : null;
+        const payload = token ? await jwt.verify(token) : null;
+        return { user: payload as AuthPayload | null };
+    })
     .get(
       "/",
       async (context) => {
@@ -105,12 +111,7 @@ export namespace AssignmentController {
           id: t.String(),
         }),
         response: {
-          200: t.Object({
-            assignmentId: t.String(),
-            totalScore: t.Number(),
-            maxPossibleScore: t.Number(),
-            percentage: t.Number(),
-          }),
+          200: t.Any(),
           404: t.Object({ message: t.String() }),
           500: t.Object({ message: t.String() }),
         },
@@ -192,9 +193,9 @@ export namespace AssignmentController {
           const newAssignment = await AssignmentService.create(body);
           set.status = 201;
           return newAssignment;
-        } catch (error) {
-          set.status = 500;
-          return { message: "Internal server error" };
+        } catch (error: any) {
+          set.status = 400;
+          return { message: error.message || "Internal server error" };
         }
       },
       {
@@ -202,6 +203,7 @@ export namespace AssignmentController {
         response: {
           201: AssignmentSchema,
           403: t.Object({ message: t.String() }),
+          400: t.Object({ message: t.String() }),
           500: t.Object({ message: t.String() }),
         },
         tags: ["Assignment"],
@@ -240,6 +242,85 @@ export namespace AssignmentController {
         },
         tags: ["Assignment"],
       },
+    )
+    .get(
+      "/:id/form",
+      async ({ params, set }) => {
+        try {
+          const form = await AssignmentService.getForm(params.id);
+          if (!form) {
+            set.status = 404;
+            return { message: "Assignment not found" };
+          }
+          return form;
+        } catch (error) {
+          set.status = 500;
+          return { message: "Internal server error" };
+        }
+      },
+      {
+        params: t.Object({ id: t.String() }),
+        response: {
+          200: t.Any(),
+          404: t.Object({ message: t.String() }),
+          500: t.Object({ message: t.String() }),
+        }
+      }
+    )
+    .post(
+      "/:id/form",
+      async ({ params, body, set }) => {
+        try {
+          await AssignmentService.submitForm(params.id, body.scores);
+          return { message: "Success" };
+        } catch (error) {
+          set.status = 500;
+          return { message: "Internal server error" };
+        }
+      },
+      {
+        params: t.Object({ id: t.String() }),
+        body: t.Object({
+          scores: t.Array(t.Object({
+            indicatorId: t.String(),
+            scoreGiven: t.Number()
+          }))
+        })
+      }
+    )
+    .post(
+      "/:id/evidence/:indicatorId",
+      async ({ params, body, set, user }) => {
+        try {
+          const assignment = await AssignmentService.findById(params.id);
+          if (!assignment) {
+            set.status = 404;
+            return { message: "Assignment not found" };
+          }
+          
+          if (user?.role === "EVALUATEE" && assignment.evaluateeId !== user.id) {
+            set.status = 403;
+            return { message: "Forbidden: You can only upload evidence for your own assignments" };
+          }
+
+          const file = body.file;
+          const fileName = `${Date.now()}_${file.name.replace(/\s+/g, "_")}`;
+          const filePath = `public/uploads/evidences/${fileName}`;
+          
+          await Bun.write(filePath, file);
+
+          const fileUrl = `/public/uploads/evidences/${fileName}`;
+          await AssignmentService.uploadEvidence(params.id, params.indicatorId, fileUrl);
+          return { message: "Success", url: fileUrl };
+        } catch (error) {
+          set.status = 500;
+          return { message: "Internal server error" };
+        }
+      },
+      {
+        params: t.Object({ id: t.String(), indicatorId: t.String() }),
+        body: t.Any()
+      }
     )
     .delete(
       "/:id",

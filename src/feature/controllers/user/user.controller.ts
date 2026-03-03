@@ -6,8 +6,9 @@ export namespace UserController {
   export const userController = new Elysia({ prefix: "/users" })
   .get(
     "/",
-    async () => {
-      return await UserService.findAll();
+    async ({ query }) => {
+      const { role } = query as { role?: string };
+      return await UserService.findAll(role);
     },
     {
       body: t.Omit(UserSchema, ["password", "createdAt"]),

@@ -5,6 +5,7 @@ export const IndicatorResultSchema = t.Object({
   indicatorId: t.String(),
   assignmentId: t.String(),
   score: t.Number(),
+  evidenceUrl: t.Optional(t.String()),
   createdAt: t.String(),
 });
 

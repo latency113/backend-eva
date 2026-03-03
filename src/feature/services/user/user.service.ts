@@ -2,8 +2,8 @@ import { User} from "./user.schema";
 import { UserRepository } from "../../repositories/user/user.repository";
 
 export namespace UserService {
-    export const findAll = async () => {
-        const users = await UserRepository.findAll();
+    export const findAll = async (role?: string) => {
+        const users = await UserRepository.findAll(role);
         return users.map(user => ({
             ...user,
             createdAt: user.createdAt.toISOString()

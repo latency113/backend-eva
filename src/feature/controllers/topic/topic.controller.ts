@@ -11,7 +11,7 @@ export namespace TopicController {
       },
       {
         response: {
-          200: t.Array(TopicSchema),
+          200: t.Any(),
         },
         500: t.Object({ message: t.String() }),
         tags: ["Topic"],
@@ -37,7 +37,7 @@ export namespace TopicController {
           id: t.String(),
         }),
         response: {
-          200: TopicSchema,
+          200: t.Any(),
           404: t.Object({ message: t.String() }),
           500: t.Object({ message: t.String() }),
         },
@@ -59,7 +59,7 @@ export namespace TopicController {
           evaluationId: t.String(),
         }),
         response: {
-          200: t.Array(TopicSchema),
+          200: t.Any(),
           500: t.Object({ message: t.String() }),
         },
         tags: ["Topic"],

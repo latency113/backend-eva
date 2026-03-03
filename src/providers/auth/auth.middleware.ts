@@ -8,27 +8,31 @@ export interface AuthPayload {
   role: "ADMIN" | "EVALUATOR" | "EVALUATEE";
 }
 
-export const authMiddleware = new Elysia()
+export const authMiddleware = new Elysia({ name: "auth.middleware" })
   .use(
     jwt({
       name: "jwt",
       secret: process.env.JWT_SECRET || "fallback_secret",
     })
   )
-  .derive(async ({ jwt, headers }) => {
-    const authorization = headers["authorization"];
-    if (!authorization || !authorization.startsWith("Bearer ")) {
-      return { user: null };
+  .resolve(async ({ jwt, headers }) => {
+    try {
+      const authorization = headers["authorization"];
+      if (!authorization || !authorization.startsWith("Bearer ")) {
+        return { user: { role: "auth_header_missing", orig: authorization } };
+      }
+
+      const token = authorization.split(" ")[1];
+      const payload = await jwt.verify(token);
+
+      if (!payload) {
+        return { user: { role: "payload_verification_failed", token } };
+      }
+
+      return { user: payload as any as AuthPayload };
+    } catch (e: any) {
+      return { user: { role: "auth_exception", error: e.message } };
     }
-
-    const token = authorization.split(" ")[1];
-    const payload = await jwt.verify(token);
-
-    if (!payload) {
-      return { user: null };
-    }
-
-    return { user: payload as any as AuthPayload };
   });
 
 export const requireAuth = new Elysia()

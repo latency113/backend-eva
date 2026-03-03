@@ -4,10 +4,15 @@ import swagger from "@elysiajs/swagger";
 import cors from "@elysiajs/cors";
 import { appController } from "./feature/controllers";
 import jwt from "@elysiajs/jwt";
+import { staticPlugin } from "@elysiajs/static";
 dotenv.config();
 
 const app = new Elysia()
   .use(cors())
+  .use(staticPlugin({
+    assets: "public",
+    prefix: "/api/v1/public"
+  }))
   .use(
     swagger({
       path: "/docs",

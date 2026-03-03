@@ -6,6 +6,7 @@ export namespace TopicRepository {
       include: {
         createdByUser: true,
         evaluation: true,
+        indicators: true,
       },
     });
   };
@@ -16,6 +17,7 @@ export namespace TopicRepository {
       include: {
         createdByUser: true,
         evaluation: true,
+        indicators: true,
       },
     });
   };
@@ -26,6 +28,7 @@ export namespace TopicRepository {
       include: {
         createdByUser: true,
         evaluation: true,
+        indicators: true,
       },
     });
   };

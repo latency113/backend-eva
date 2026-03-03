@@ -47,10 +47,16 @@ export namespace EvaluationController {
       },
     )
     .use(requireAuth)
+    .resolve(async ({ jwt, headers }) => {
+      const auth = headers.authorization;
+      const token = auth && auth.startsWith("Bearer ") ? auth.split(" ")[1] : null;
+      const payload = token ? await jwt.verify(token) : null;
+      return { user: payload as any };
+    })
     .post(
       "/",
-      async (context) => {
-        const { body, set, user } = context as any;
+      async (context: any) => {
+        const { body, set, user } = context;
         if (user?.role !== "ADMIN") {
           set.status = 403;
           return { message: "Forbidden: Only ADMIN can create evaluations" };
@@ -76,8 +82,7 @@ export namespace EvaluationController {
     )
     .put(
       "/:id",
-      async (context) => {
-        const { params, body, set, user } = context as any;
+      async ({ params, body, set, user }: any) => {
         if (user?.role !== "ADMIN") {
           set.status = 403;
           return { message: "Forbidden: Only ADMIN can update evaluations" };
@@ -108,10 +113,42 @@ export namespace EvaluationController {
         tags: ["Evaluation"],
       },
     )
+    .patch(
+      "/:id",
+      async ({ params, body, set, user }: any) => {
+        if (user?.role !== "ADMIN") {
+          set.status = 403;
+          return { message: "Forbidden: Only ADMIN can update evaluations" };
+        }
+        try {
+          const updatedEvaluation = await EvaluationService.update(params.id, body);
+          if (!updatedEvaluation) {
+            set.status = 404;
+            return { message: "Evaluation not found" };
+          }
+          return updatedEvaluation;
+        } catch (error) {
+          set.status = 500;
+          return { message: "Internal server error" };
+        }
+      },
+      {
+        params: t.Object({
+          id: t.String(),
+        }),
+        body: t.Partial(t.Omit(EvaluationSchema, ["id", "createdAt"])),
+        response: {
+          200: EvaluationSchema,
+          403: t.Object({ message: t.String() }),
+          404: t.Object({ message: t.String() }),
+          500: t.Object({ message: t.String() }),
+        },
+        tags: ["Evaluation"],
+      },
+    )
     .delete(
       "/:id",
-      async (context) => {
-        const { params, set, user } = context as any;
+      async ({ params, set, user }: any) => {
         if (user?.role !== "ADMIN") {
           set.status = 403;
           return { message: "Forbidden: Only ADMIN can delete evaluations" };

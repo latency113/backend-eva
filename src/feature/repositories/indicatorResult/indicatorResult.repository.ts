@@ -44,6 +44,7 @@ export namespace IndicatorResultRepository {
     indicatorId: string;
     assignmentId: string;
     score: number;
+    evidenceUrl?: string;
   }) => {
     return await prisma.indicatorResult.create({
       data,
@@ -54,6 +55,7 @@ export namespace IndicatorResultRepository {
     id: string,
     data: {
       score?: number;
+      evidenceUrl?: string;
     },
   ) => {
     return await prisma.indicatorResult.update({

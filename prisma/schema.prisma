@@ -65,8 +65,9 @@ model Topic {
   createdBy    String   @db.ObjectId
   createdAt    DateTime @default(now())
 
-  createdByUser User       @relation(fields: [createdBy], references: [id])
-  evaluation    Evaluation @relation(fields: [evaluationId], references: [id])
+  createdByUser User        @relation(fields: [createdBy], references: [id])
+  evaluation    Evaluation  @relation(fields: [evaluationId], references: [id])
+  indicators    Indicator[]
 }
 
 model Indicator {
@@ -80,6 +81,8 @@ model Indicator {
   createdAt          DateTime            @default(now())
   indicatorEvidences IndicatorEvidence[]
   indicatorResults   IndicatorResult[]
+
+  topic Topic @relation(fields: [topicId], references: [id])
 }
 
 model IndicatorEvidence {
@@ -110,9 +113,12 @@ model IndicatorResult {
   id           String   @id @default(auto()) @map("_id") @db.ObjectId
   indicatorId  String   @db.ObjectId
   assignmentId String   @db.ObjectId
-  score        Int
+  score        Float    @default(0)
+  evidenceUrl  String?
   createdAt    DateTime @default(now())
 
   indicator  Indicator  @relation(fields: [indicatorId], references: [id])
   assignment Assignment @relation(fields: [assignmentId], references: [id])
+
+  @@unique([assignmentId, indicatorId])
 }

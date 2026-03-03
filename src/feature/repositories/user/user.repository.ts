@@ -1,8 +1,9 @@
 import prisma from "../../../providers/database/database.provider";
 
 export namespace UserRepository {
-    export const findAll = async () => {
+    export const findAll = async (role?: string) => {
         return await prisma.user.findMany({
+            where: role ? { role: role as any } : undefined,
             include: {
                 department: true,
                 evaluations:true
