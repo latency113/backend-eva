@@ -22,7 +22,7 @@ export namespace AuthController {
                     set.status = 203;
                     return { token: result.token };
                 } else {
-                    set.status = 401;
+                    set.status = 403;
                     return { message: "Invalid email or password" };
                 }
             } catch (error: any) {
